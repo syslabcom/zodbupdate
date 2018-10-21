@@ -37,14 +37,17 @@ class Updater(object):
     def __init__(
             self, storage, dry=False, renames=None, decoders=None,
             start_at='0x00', debug=False, repickle_all=False,
-            pickle_protocol=zodbupdate.utils.DEFAULT_PROTOCOL):
+            pickle_protocol=zodbupdate.utils.DEFAULT_PROTOCOL,
+            encoding='ASCII'):
         self.dry = dry
         self.storage = storage
         self.processor = zodbupdate.serialize.ObjectRenamer(
             renames=renames,
             decoders=decoders,
             pickle_protocol=pickle_protocol,
-            repickle_all=repickle_all)
+            repickle_all=repickle_all,
+            encoding=encoding,
+        )
         self.start_at = start_at
         self.debug = debug
 

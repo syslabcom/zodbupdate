@@ -15,6 +15,7 @@
 import ZODB._compat
 import logging
 import six
+import sys
 import zodbpickle
 
 from ZODB.broken import Broken
@@ -31,8 +32,8 @@ if six.PY3:
 
     class UnpicklerImpl(pickle.Unpickler):
 
-        def __init__(self, f):
-            super(UnpicklerImpl, self).__init__(f, encoding='utf-8', errors='bytes')
+        def __init__(self, f, **kw):
+            super(UnpicklerImpl, self).__init__(f, **kw)
 
         # Py3: Python 3 doesn't allow assignments to find_global,
         # instead, find_class can be overridden
@@ -61,9 +62,9 @@ DEFAULT_PROTOCOL = ZODB._compat._protocol
 
 
 def Unpickler(
-        input_file, persistent_load, find_global):
+        input_file, persistent_load, find_global, **kw):
     # Please refer to ZODB._compat for explanation.
-    unpickler = UnpicklerImpl(input_file)
+    unpickler = UnpicklerImpl(input_file, **kw)
     if find_global is not None:
         unpickler.find_global = find_global
         try:
@@ -84,9 +85,11 @@ def Pickler(
     return pickler
 
 
-def safe_binary(value, encoding='utf-8'):
+ENCODING = sys.getdefaultencoding()
+
+def safe_binary(value):
     if isinstance(value, bytes):
         return zodbpickle.binary(value)
     if isinstance(value, six.text_type):
-        return zodbpickle.binary(value, encoding)
+        return zodbpickle.binary(value, ENCODING)
     return value

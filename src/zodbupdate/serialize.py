@@ -12,6 +12,7 @@
 #
 ##############################################################################
 
+import contextlib
 import io
 import logging
 import types
@@ -144,13 +145,21 @@ class ObjectRenamer(object):
     """
 
     def __init__(
-            self, renames, decoders, pickle_protocol=3, repickle_all=False):
+            self, renames, decoders, pickle_protocol=3, repickle_all=False,
+            encoding=None):
         self.__added = dict()
         self.__renames = renames
         self.__decoders = decoders
         self.__changed = False
         self.__protocol = pickle_protocol
         self.__repickle_all = repickle_all
+        self.__encoding = encoding
+        self.__unpickle_options = {}
+        if encoding:
+            self.__unpickle_options = {
+                'encoding': encoding,
+                'errors': 'bytes',
+            }
 
     def __update_symb(self, symb_info):
         """This method look in a klass or symbol have been renamed or
@@ -247,7 +256,8 @@ class ObjectRenamer(object):
         return utils.Unpickler(
             input_file,
             self.__persistent_load,
-            self.__find_global)
+            self.__find_global,
+            **self.__unpickle_options)
 
     def __pickler(self, output_file):
         """Create a pickler able to save to the given file, objects we
@@ -291,6 +301,18 @@ class ObjectRenamer(object):
         for decoder in self.__decoders.get(key, []):
             self.__changed = decoder(data) or self.__changed
 
+    @contextlib.contextmanager
+    def __patched_encoding(self):
+        if self.__encoding:
+            orig = utils.ENCODING
+            utils.ENCODING = self.__encoding
+            try:
+                yield
+            finally:
+                utils.ENCODING = orig
+        else:
+            yield
+
     def rename(self, input_file):
         """Take a ZODB record (as a file object) as input. We load it,
         replace any reference to renamed class we know of. If any
@@ -300,34 +322,35 @@ class ObjectRenamer(object):
         self.__changed = False
         self.__skipped = False
 
-        unpickler = self.__unpickler(input_file)
-        class_meta = unpickler.load()
-        data = unpickler.load()
+        with self.__patched_encoding():
+            unpickler = self.__unpickler(input_file)
+            class_meta = unpickler.load()
+            data = unpickler.load()
 
-        class_meta = self.__update_class_meta(class_meta)
+            class_meta = self.__update_class_meta(class_meta)
 
-        if self.__skipped:
-            # do not do renames/conversions on blob records
-            return None
+            if self.__skipped:
+                # do not do renames/conversions on blob records
+                return None
 
-        self.__decode_data(class_meta, data)
+            self.__decode_data(class_meta, data)
 
-        if not (self.__changed or self.__repickle_all):
-            return None
+            if not (self.__changed or self.__repickle_all):
+                return None
 
-        output_file = io.BytesIO()
-        pickler = self.__pickler(output_file)
-        try:
-            pickler.dump(class_meta)
-            pickler.dump(data)
-        except utils.PicklingError as error:
-            logger.error(
-                'Error: cannot pickling modified record: {}'.format(error))
-            # Could not pickle that record, skip it.
-            return None
+            output_file = io.BytesIO()
+            pickler = self.__pickler(output_file)
+            try:
+                pickler.dump(class_meta)
+                pickler.dump(data)
+            except utils.PicklingError as error:
+                logger.error(
+                    'Error: cannot pickling modified record: {}'.format(error))
+                # Could not pickle that record, skip it.
+                return None
 
-        output_file.truncate()
-        return output_file
+            output_file.truncate()
+            return output_file
 
     def get_rules(self, implicit=False, explicit=False):
         rules = {}

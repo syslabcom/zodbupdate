@@ -19,6 +19,7 @@ import logging
 import optparse
 import pkg_resources
 import pprint
+import six
 import time
 import zodbupdate.convert
 import zodbupdate.update
@@ -61,6 +62,10 @@ parser.add_option(
 parser.add_option(
     "--convert-py3", action="store_true",  dest="convert_py3",
     help="convert pickle format to protocol 3 and adjust bytes")
+parser.add_option(
+    '--encoding', dest="encoding",
+    help="used for decoding pickled strings in py3"
+)
 
 
 class DuplicateFilter(object):
@@ -114,6 +119,7 @@ def create_updater(
         default_decoders=None,
         start_at=None,
         convert_py3=False,
+        encoding=None,
         dry_run=False,
         debug=False):
     if not start_at:
@@ -141,7 +147,9 @@ def create_updater(
         start_at=start_at,
         debug=debug,
         repickle_all=repickle_all,
-        pickle_protocol=pickle_protocol)
+        pickle_protocol=pickle_protocol,
+        encoding=encoding,
+    )
 
 
 def format_renames(renames):
@@ -157,6 +165,11 @@ def main():
     options, args = parser.parse_args()
 
     setup_logger(quiet=options.quiet, verbose=options.verbose)
+
+    if six.PY2 and encoding:
+        raise AssertionError(
+            'Unpickling with a default encoding is only supported in Python 3.'
+        )
 
     if options.file and options.config:
         raise AssertionError(
@@ -178,6 +191,7 @@ def main():
         storage,
         start_at=options.oid,
         convert_py3=options.convert_py3,
+        encoding=options.encoding,
         dry_run=options.dry_run,
         debug=options.debug)
     try:
