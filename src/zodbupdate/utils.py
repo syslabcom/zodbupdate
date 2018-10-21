@@ -91,5 +91,5 @@ def safe_binary(value):
     if isinstance(value, bytes):
         return zodbpickle.binary(value)
     if isinstance(value, six.text_type):
-        return zodbpickle.binary(value, ENCODING)
+        return zodbpickle.binary(value.encode(ENCODING))
     return value

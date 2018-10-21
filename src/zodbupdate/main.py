@@ -166,7 +166,7 @@ def main():
 
     setup_logger(quiet=options.quiet, verbose=options.verbose)
 
-    if six.PY2 and encoding:
+    if six.PY2 and options.encoding:
         raise AssertionError(
             'Unpickling with a default encoding is only supported in Python 3.'
         )
@@ -175,7 +175,7 @@ def main():
         raise AssertionError(
             'Exactly one of --file or --config must be given.')
 
-    if options.convert_py3 and not options.dry_run:
+    if options.convert_py3 and six.PY3 and not options.dry_run:
         zodbupdate.convert.update_magic_data_fs(options.file)
 
     if options.file:
@@ -215,3 +215,6 @@ def main():
         logger.info('Packing storage ...')
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
+
+    if options.convert_py3 and six.PY2 and not options.dry_run:
+        zodbupdate.convert.update_magic_data_fs(options.file)

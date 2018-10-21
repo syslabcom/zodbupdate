@@ -50,6 +50,8 @@ class Time(datetime.time):
 
 def default_renames():
     return {
+        ('UserDict', 'UserDict'): ('collections', 'UserDict'),
+        ('__builtin__', 'set'): ('builtins', 'set'),
         ('datetime', 'datetime'): ('zodbupdate.convert', 'Datetime'),
         ('datetime', 'date'): ('zodbupdate.convert', 'Date'),
         ('datetime', 'time'): ('zodbupdate.convert', 'Time')}
