@@ -125,6 +125,11 @@ def create_updater(
     if not start_at:
         start_at = '0x00'
 
+    if six.PY2 and encoding:
+        raise AssertionError(
+            'Unpickling with a default encoding is only supported in Python 3.'
+        )
+
     decoders = {}
     if default_decoders:
         decoders.update(default_decoders)
@@ -166,15 +171,13 @@ def main():
 
     setup_logger(quiet=options.quiet, verbose=options.verbose)
 
-    if six.PY2 and options.encoding:
-        raise AssertionError(
-            'Unpickling with a default encoding is only supported in Python 3.'
-        )
-
     if options.file and options.config:
         raise AssertionError(
             'Exactly one of --file or --config must be given.')
 
+    # Magic bytes need to be converted at the end when running in Python 2
+    # but at the beginning when running in Python 3 so that FileStorage
+    # doesn't complain.
     if options.convert_py3 and six.PY3 and not options.dry_run:
         zodbupdate.convert.update_magic_data_fs(options.file)
 

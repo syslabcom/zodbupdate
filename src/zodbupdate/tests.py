@@ -222,6 +222,11 @@ class Tests(unittest.TestCase):
 
 class Python2Tests(Tests):
 
+    def test_convert_with_default_encoding(self):
+        # Python 2's pickle doesn't support an encoding parameter
+        with self.assertRaises(AssertionError):
+            self.update(encoding='utf-8')
+
     def test_convert_attribute_to_bytes(self):
         from zodbupdate.convert import encode_binary
 
@@ -792,6 +797,35 @@ class Python3Tests(Tests):
             b'cdatetime\ntime\nq\x03'
             b'C\x06\x0c\x0c\x00\x00\x00\x00q\x04\x85q\x05Rq\x06s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_with_default_encoding(self):
+        # Manually craft a protocol 2 pickle
+        test = sys.modules['module1'].Factory()
+        self.root['test'] = test
+        data = (
+            b'\x80\x02cmodule1\nFactory\nq\x01.'
+            b'\x80\x02}q\x02U\x06stringq\x03U\x03\xe2\x98\x83q\x04s.'
+        )
+        orig_serialize = ZODB.serialize.ObjectWriter.serialize
+        def serialize(self, obj):
+            if obj is test:
+                return data
+            return orig_serialize(self, obj)
+        ZODB.serialize.ObjectWriter.serialize = serialize
+        try:
+            transaction.commit()
+        finally:
+            ZODB.serialize.ObjectWriter.serialize = orig_serialize
+
+        self.update(convert_py3=True, encoding='utf-8')
+
+        # Now we have a protocol 3 pickle with the text decoded
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x06\x00\x00\x00stringq\x02'
+            b'X\x03\x00\x00\x00\xe2\x98\x83q\x03s.',
+            self.storage.load(test._p_oid, '')[0]
+        )
 
     def test_factory_ignore_missing_persistent(self):
         # Create a ZODB with an object referencing a factory, then

@@ -97,7 +97,7 @@ class Updater(object):
             self.__commit_transaction(t, record_count != 0, commit_count)
         except Exception as error:
             if not self.debug:
-                raise error
+                raise
             import sys
             import pdb
             (type, value, traceback) = sys.exc_info()
