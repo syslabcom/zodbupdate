@@ -59,7 +59,11 @@ def decode_attribute(attribute, encoding):
 
     def decode(data):
         value = data.get(attribute)
-        if value is not None and not isinstance(value, six.text_type):
+        if value is not None:
+            if isinstance(value, six.text_type):
+                if encoding == utils.ENCODING:
+                    return False
+                value = utils.safe_binary(value)
             data[attribute] = value.decode(encoding)
             return True
         return False
