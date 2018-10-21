@@ -23,7 +23,6 @@ import time
 import zodbupdate.convert
 import zodbupdate.update
 import zodbupdate.utils
-import six
 
 logger = logging.getLogger('zodbupdate')
 
@@ -129,10 +128,6 @@ def create_updater(
     repickle_all = False
     pickle_protocol = zodbupdate.utils.DEFAULT_PROTOCOL
     if convert_py3:
-        if six.PY3:
-            raise AssertionError(
-                'You can only convert a database to Python 3 format '
-                'from Python 2.')
         pickle_protocol = 3
         repickle_all = True
         decoders.update(zodbupdate.convert.load_decoders())
@@ -166,6 +161,9 @@ def main():
     if options.file and options.config:
         raise AssertionError(
             'Exactly one of --file or --config must be given.')
+
+    if options.convert_py3 and not options.dry_run:
+        zodbupdate.convert.update_magic_data_fs(options.file)
 
     if options.file:
         storage = ZODB.FileStorage.FileStorage(options.file)
@@ -203,6 +201,3 @@ def main():
         logger.info('Packing storage ...')
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
-
-    if options.convert_py3 and not options.dry_run:
-        zodbupdate.convert.update_magic_data_fs(options.file)

@@ -202,34 +202,34 @@ class ObjectRenamer(object):
             if isinstance(cls_info, tuple):
                 cls_info = self.__update_symb(cls_info)
             return ZODBReference(
-                (zodbpickle.binary(oid), cls_info))
+                (utils.safe_binary(oid), cls_info))
         if isinstance(reference, list):
             if len(reference) == 1:
                 oid, = reference
                 return ZODBReference(
-                    ['w', (zodbpickle.binary(oid))])
+                    ['w', (utils.safe_binary(oid))])
             mode, information = reference
             if mode == 'm':
                 database_name, oid, cls_info = information
                 if isinstance(cls_info, tuple):
                     cls_info = self.__update_symb(cls_info)
                 return ZODBReference(
-                    ['m', (database_name, zodbpickle.binary(oid), cls_info)])
+                    ['m', (database_name, utils.safe_binary(oid), cls_info)])
             if mode == 'n':
                 database_name, oid = information
                 return ZODBReference(
-                    ['m', (database_name, zodbpickle.binary(oid))])
+                    ['m', (database_name, utils.safe_binary(oid))])
             if mode == 'w':
                 if len(information) == 1:
                     oid, = information
                     return ZODBReference(
-                        ['w', (zodbpickle.binary(oid))])
+                        ['w', (utils.safe_binary(oid))])
                 oid, database_name = information
                 return ZODBReference(
-                    ['w', (zodbpickle.binary(oid), database_name)])
+                    ['w', (utils.safe_binary(oid), database_name)])
         if isinstance(reference, (str, zodbpickle.binary)):
             oid = reference
-            return ZODBReference(zodbpickle.binary(oid))
+            return ZODBReference(utils.safe_binary(oid))
         raise AssertionError('Unknown reference format.')
 
     def __persistent_id(self, obj):
