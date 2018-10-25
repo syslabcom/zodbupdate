@@ -15,6 +15,8 @@
 import ZODB.FileStorage
 import ZODB.config
 import ZODB.serialize
+import ZODB.utils
+import json
 import logging
 import optparse
 import pkg_resources
@@ -57,7 +59,9 @@ parser.add_option(
 parser.add_option(
     "--pack", action="store_true", dest="pack",
     help="pack the storage when done. use in conjunction of -c if you have blobs storage")
-
+parser.add_option(
+    "-k", "--known-classes",
+    help="file containing a mapping from oids to module/class tuples in JSON format")
 
 
 class DuplicateFilter(object):
@@ -108,6 +112,13 @@ def main():
     if options.oid:
         start_at = options.oid
 
+    class_by_oid = {}
+    if options.known_classes:
+        classes_file = open(options.known_classes, 'r')
+        class_by_oid = {ZODB.utils.repr_to_oid(key): value
+                        for key, value in json.load(classes_file).items()}
+        classes_file.close()
+
     rename_rules = {}
     for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
         rules = entry_point.load()
@@ -119,6 +130,7 @@ def main():
         storage,
         dry=options.dry_run,
         renames=rename_rules,
+        class_by_oid=class_by_oid,
         start_at=start_at,
         debug=options.debug,
         pickler_name=options.pickler)

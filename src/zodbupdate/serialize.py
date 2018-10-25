@@ -144,21 +144,25 @@ class ObjectRenamer(object):
     - in class information (first pickle of the record).
     """
 
-    def __init__(self, changes, pickler_name='C'):
+    def __init__(self, changes, class_by_oid={}, pickler_name='C'):
         self.__added = dict()
         self.__changes = dict()
         for old, new in changes.iteritems():
             self.__changes[tuple(old.split(' '))] = tuple(new.split(' '))
+        self.__class_by_oid = class_by_oid
         self.__changed = False
         self.__pickler_name = pickler_name
 
-    def __update_symb(self, symb_info):
+    def __update_symb(self, symb_info, oid=None):
         """This method look in a klass or symbol have been renamed or
         not. If the symbol have not been renamed explicitly, it's
         loaded and its location is checked to see if it have moved as
         well.
         """
-        if symb_info in self.__changes:
+        if oid in self.__class_by_oid:
+            self.__changed = True
+            return self.__class_by_oid[oid]
+        elif symb_info in self.__changes:
             self.__changed = True
             return self.__changes[symb_info]
         else:
@@ -195,15 +199,21 @@ class ObjectRenamer(object):
         """
         if isinstance(reference, tuple):
             oid, klass_info = reference
-            if isinstance(klass_info, tuple):
-                klass_info = self.__update_symb(klass_info)
+            if oid in self.__class_by_oid:
+                self.__changed = True
+                klass_info = find_global(*self.__class_by_oid[oid], Broken=ZODBBroken)
+            elif isinstance(klass_info, tuple):
+                klass_info = self.__update_symb(klass_info, oid=oid)
             return ZODBReference((oid, klass_info))
         if isinstance(reference, list):
             mode, information = reference
             if mode == 'm':
                 database_name, oid, klass_info = information
-                if isinstance(klass_info, tuple):
-                    klass_info = self.__update_symb(klass_info)
+                if oid in self.__class_by_oid:
+                    self.__changed = True
+                    klass_info = find_global(*self.__class_by_oid[oid], Broken=ZODBBroken)
+                elif isinstance(klass_info, tuple):
+                    klass_info = self.__update_symb(klass_info, oid=oid)
                 return ZODBReference(['m', (database_name, oid, klass_info)])
         return ZODBReference(reference)
 
@@ -230,7 +240,7 @@ class ObjectRenamer(object):
         pickler.persistent_id = self.__persistent_id
         return pickler
 
-    def __update_class_meta(self, class_meta):
+    def __update_class_meta(self, class_meta, oid):
         """Update class information, which can contain information
         about a renamed class.
         """
@@ -242,10 +252,10 @@ class ObjectRenamer(object):
                     u'Warning: Missing factory for %s' % u' '.join(symb_info))
                 return (symb_info, args)
             elif isinstance(symb, tuple):
-                return self.__update_symb(symb), args
+                return self.__update_symb(symb, oid=oid), args
         return class_meta
 
-    def rename(self, input_file):
+    def rename(self, input_file, oid):
         """Take a ZODB record (as a file object) as input. We load it,
         replace any reference to renamed class we know of. If any
         modification are done, we save the record again and return it,
@@ -257,7 +267,7 @@ class ObjectRenamer(object):
         class_meta = unpickler.load()
         data = unpickler.load()
 
-        class_meta = self.__update_class_meta(class_meta)
+        class_meta = self.__update_class_meta(class_meta, oid)
 
         if not (self.__changed or
                 (hasattr(unpickler, 'need_repickle') and

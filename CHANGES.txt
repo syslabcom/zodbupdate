@@ -4,7 +4,9 @@ Changes
 0.6 (unreleased)
 ----------------
 
-- ...
+- Support for passing in known classes for given oids.
+  Can be used if there is no 1-to-1 mapping from old to new classes.
+
 
 0.5 (2010-10-07)
 ----------------

@@ -30,12 +30,12 @@ TRANSACTION_COUNT = 100000
 class Updater(object):
     """Update class references for all current objects in a storage."""
 
-    def __init__(self, storage, dry=False, renames=None,
+    def __init__(self, storage, dry=False, renames=None, class_by_oid={},
                  start_at='0x00', debug=False, pickler_name='C'):
         self.dry = dry
         self.storage = storage
         self.processor = zodbupdate.serialize.ObjectRenamer(
-            renames or {}, pickler_name)
+            renames or {}, class_by_oid=class_by_oid, pickler_name=pickler_name)
         self.start_at = start_at
         self.debug = debug
 
@@ -62,7 +62,7 @@ class Updater(object):
             for oid, serial, current in self.records:
                 logger.debug('Processing OID %s' % ZODB.utils.oid_repr(oid))
 
-                new = self.processor.rename(current)
+                new = self.processor.rename(current, oid)
                 if new is None:
                     continue
 
